@@ -55,6 +55,8 @@ const preloadImage = (
     img.src = src;
     img.onload = () => resolve();
     img.onerror = reject;
+    // Add timeout to prevent hanging
+    setTimeout(() => reject(new Error('Image load timeout')), 5000);
   });
 };
 
@@ -114,13 +116,15 @@ export function useWikiArticles() {
             origin: "*",
           })
       );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data: WikiCategoryResponse = await response.json();
       return data.query?.categorymembers || [];
     } catch (error) {
-      console.error(
-        `Error fetching films for ${year}:`,
-        error
-      );
+      console.error(`Error fetching films for ${year}:`, error);
       return [];
     }
   };
@@ -152,40 +156,26 @@ export function useWikiArticles() {
           })
       );
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data: WikiPagesResponse = await response.json();
 
-      const filmArticles = Object.values(
-        data.query.pages
-      )
+      const filmArticles = Object.values(data.query.pages)
         .filter((page: WikiPage) => {
           const isFilm =
             page.categories?.some(
               (cat: WikiCategory) =>
-                cat.title
-                  .toLowerCase()
-                  .includes("film") ||
-                cat.title
-                  .toLowerCase()
-                  .includes("movie") ||
-                cat.title
-                  .toLowerCase()
-                  .includes("cinema")
+                cat.title.toLowerCase().includes("film") ||
+                cat.title.toLowerCase().includes("movie") ||
+                cat.title.toLowerCase().includes("cinema")
             ) ||
-            page.title
-              .toLowerCase()
-              .includes("film") ||
-            page.extract
-              ?.toLowerCase()
-              .includes("film") ||
-            page.extract
-              ?.toLowerCase()
-              .includes("movie") ||
-            page.extract
-              ?.toLowerCase()
-              .includes("directed by") ||
-            page.extract
-              ?.toLowerCase()
-              .includes("starring");
+            page.title.toLowerCase().includes("film") ||
+            page.extract?.toLowerCase().includes("film") ||
+            page.extract?.toLowerCase().includes("movie") ||
+            page.extract?.toLowerCase().includes("directed by") ||
+            page.extract?.toLowerCase().includes("starring");
 
           return (
             isFilm &&
@@ -200,9 +190,7 @@ export function useWikiArticles() {
           (page: WikiPage): WikiArticle => ({
             title: page.title,
             displaytitle:
-              page.varianttitles?.[
-                currentLanguage.id
-              ] || page.title,
+              page.varianttitles?.[currentLanguage.id] || page.title,
             extract: page.extract!,
             pageid: page.pageid.toString(),
             thumbnail: page.thumbnail!,
@@ -215,13 +203,14 @@ export function useWikiArticles() {
       // Deduplicate the articles
       const uniqueFilmArticles = deduplicateArticles(filmArticles);
 
+      // Preload images with error handling
       await Promise.allSettled(
         uniqueFilmArticles
           .filter((article) => article.thumbnail)
           .map((article) =>
-            preloadImage(
-              article.thumbnail!.source
-            )
+            preloadImage(article.thumbnail!.source).catch(err => {
+              console.warn(`Failed to preload image for ${article.title}:`, err);
+            })
           )
       );
 
@@ -235,45 +224,46 @@ export function useWikiArticles() {
           const mergedArticles = mergeUniqueArticles(prev, uniqueFilmArticles);
           return deduplicateArticles(mergedArticles);
         });
-        fetchArticlesRef.current?.(true);
+        // Only fetch buffer if we got some articles and we're not already fetching buffer
+        if (uniqueFilmArticles.length > 0) {
+          setTimeout(() => fetchArticlesRef.current?.(true), 2000);
+        }
       }
     } catch (error) {
-      console.error(
-        "Error in fallback film fetch:",
-        error
-      );
+      console.error("Error in fallback film fetch:", error);
+      throw error; // Re-throw to be handled by caller
     }
   };
 
   const fetchArticles = async (
     forBuffer = false
   ) => {
-    if (loading) return;
-    setLoading(true);
+    if (loading && !forBuffer) return;
+    if (!forBuffer) setLoading(true);
 
     try {
+      // First, try the primary method with film years
       const yearPromises = [];
       for (let i = 0; i < 5; i++) {
         const randomYear = getWeightedFilmYear();
-        yearPromises.push(
-          fetchFilmsForYear(randomYear)
-        );
+        yearPromises.push(fetchFilmsForYear(randomYear));
       }
 
-      const yearResults = await Promise.all(
-        yearPromises
-      );
+      const yearResults = await Promise.all(yearPromises);
       const allFilms = yearResults.flat();
+
+      // If we got no films, throw an error to trigger fallback
+      if (allFilms.length === 0) {
+        throw new Error("No films found in year-based search");
+      }
 
       // Remove duplicates from the films list before proceeding
       const uniqueFilms = Array.from(
         new Map(allFilms.map(film => [film.pageid, film])).values()
       );
 
-      // Randomly select 20 films from all collected unique films
-      const shuffled = [...uniqueFilms].sort(
-        () => Math.random() - 0.5
-      );
+      // Randomly select films from all collected unique films
+      const shuffled = [...uniqueFilms].sort(() => Math.random() - 0.5);
       const selectedTitles = shuffled
         .slice(0, 20)
         .map((film: WikiCategoryMember) => film.title);
@@ -297,27 +287,26 @@ export function useWikiArticles() {
           })
       );
 
-      const detailsData: WikiPagesResponse =
-        await detailsResponse.json();
+      if (!detailsResponse.ok) {
+        throw new Error(`HTTP ${detailsResponse.status}: ${detailsResponse.statusText}`);
+      }
 
-      const newArticles = Object.values(
-        detailsData.query.pages
-      )
+      const detailsData: WikiPagesResponse = await detailsResponse.json();
+
+      const newArticles = Object.values(detailsData.query.pages)
         .filter(
           (page: WikiPage) =>
             page.thumbnail &&
             page.thumbnail.source &&
             page.canonicalurl &&
             page.extract &&
-            page.extract.length > 100 // Ensure substantial content
+            page.extract.length > 100
         )
         .map(
           (page: WikiPage): WikiArticle => ({
             title: page.title,
             displaytitle:
-              page.varianttitles?.[
-                currentLanguage.id
-              ] || page.title,
+              page.varianttitles?.[currentLanguage.id] || page.title,
             extract: page.extract!,
             pageid: page.pageid.toString(),
             thumbnail: page.thumbnail!,
@@ -328,14 +317,14 @@ export function useWikiArticles() {
       // Deduplicate the new articles
       const uniqueNewArticles = deduplicateArticles(newArticles);
 
-      // Preload images
+      // Preload images with better error handling
       await Promise.allSettled(
         uniqueNewArticles
           .filter((article) => article.thumbnail)
           .map((article) =>
-            preloadImage(
-              article.thumbnail!.source
-            )
+            preloadImage(article.thumbnail!.source).catch(err => {
+              console.warn(`Failed to preload image for ${article.title}:`, err);
+            })
           )
       );
 
@@ -349,17 +338,24 @@ export function useWikiArticles() {
           const mergedArticles = mergeUniqueArticles(prev, uniqueNewArticles);
           return deduplicateArticles(mergedArticles);
         });
-        fetchArticles(true);
+        // Only fetch buffer if we got some articles and we're not already fetching buffer
+        if (uniqueNewArticles.length > 0) {
+          setTimeout(() => fetchArticlesRef.current?.(true), 2000);
+        }
       }
     } catch (error) {
-      console.error(
-        "Error fetching film articles:",
-        error
-      );
-      await fetchRandomFilmsWithFilter(forBuffer);
+      console.error("Primary fetch method failed, trying fallback:", error);
+      
+      try {
+        // Try the fallback method
+        await fetchRandomFilmsWithFilter(forBuffer);
+      } catch (fallbackError) {
+        console.error("Fallback method also failed:", fallbackError);
+        // Don't set error state, just let it fail silently for now
+      }
     }
 
-    setLoading(false);
+    if (!forBuffer) setLoading(false);
   };
 
   // Update the ref whenever fetchArticles changes
@@ -372,7 +368,8 @@ export function useWikiArticles() {
         return deduplicateArticles(mergedArticles);
       });
       setBuffer([]);
-      fetchArticlesRef.current?.(true);
+      // Fetch new buffer after using current buffer
+      setTimeout(() => fetchArticlesRef.current?.(true), 1000);
     } else {
       fetchArticlesRef.current?.(false);
     }
