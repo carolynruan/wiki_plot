@@ -47,7 +47,7 @@ function App() {
                         border border-white/10 hover:border-white/20 shadow-lg 
                         flex items-center gap-2"
             >
-              WikiPlots
+              wiki_plot
             </button>
 
             <div className="flex items-center gap-2">
@@ -80,12 +80,11 @@ function App() {
               <X className="w-4 h-4" />
             </button>
             
-            <h2 className="text-2xl font-bold mb-6 text-white">About WikiPlots</h2>
+            <h2 className="text-2xl font-bold mb-6 text-white">About wiki_plot</h2>
             
             <div className="space-y-4 text-gray-200">
               <p className="leading-relaxed">
-                A TikTok-style interface for exploring random Wikipedia articles of movies. 
-                Scroll through and discover fascinating film plots from around the world.
+                A TikTok-style interface for exploring random Wikipedia articles of movies.
               </p>
               
               <div className="pt-4 border-t border-gray-700/50 space-y-2">
@@ -102,7 +101,7 @@ function App() {
                 </p>
                 
                 <p className="text-sm text-gray-300">
-                  Forked from WikiTok on{" "}
+                  Original code from WikiTok on{" "}
                   <a
                     href="https://github.com/IsaacGemal/wikitok"
                     target="_blank"
@@ -127,10 +126,8 @@ function App() {
         <WikiCard key={article.pageid} article={article} />
       ))}
 
-      {/* Intersection Observer Target */}
       <div ref={observerTarget} className="h-10 -mt-1" />
 
-      {/* Loading Indicator */}
       {loading && (
         <div className="h-screen w-full flex items-center justify-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-white" />
