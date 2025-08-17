@@ -1,50 +1,20 @@
-import type { KeyboardEvent } from "react";
-import Article from "./Article";
-import { ArticleProps } from "../types/ArticleProps";
-interface ArticleListProps {
-  articles: ArticleProps[];
-  onArticleSelect?: (
-    article: ArticleProps
-  ) => void;
-}
+import React from 'react';
+import { ArticleProps, ArticleListProps } from '../types/ArticleProps';
 
-const ArticleList = ({
-  articles,
-  onArticleSelect,
-}) => {
-  const handleKeyPress = (
-    e: KeyboardEvent<HTMLLIElement>,
-    article: ArticleProps
-  ) => {
-    if (e.key == "Enter" || e.key == " ") {
-      e.preventDefault();
-      onArticleSelect?.(article);
-    }
-  };
-
-  const handleClick = (article: ArticleProps) => {
-    onArticleSelect?.(article);
-  };
-
+const ArticleList: React.FC<ArticleListProps> = ({ articles, onArticleSelect }) => {
   return (
-    <nav aria-label="Articles navigation">
-      <ul role="list" className="articles-list">
-        {articles.map((article, index) => (
-          <li
-            key={index}
-            role="listitem"
-            tabIndex={0}
-            onClick={() => handleClick(article)}
-            onKeyPress={(e) =>
-              handleKeyPress(e, article)
-            }
-            aria-label={`Article: ${article.title}`}
-          >
-            <Article {...article} />
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <div className="space-y-4">
+      {articles.map((article: ArticleProps) => (
+        <div
+          key={article.id}
+          className="p-4 border rounded cursor-pointer hover:bg-gray-50"
+          onClick={() => onArticleSelect(article)}
+        >
+          <h3 className="font-semibold">{article.title}</h3>
+          <p className="text-gray-600">{article.date}</p>
+        </div>
+      ))}
+    </div>
   );
 };
 

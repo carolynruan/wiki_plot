@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { WikiCard } from "./components/WikiCard";
-import { Loader2, Search, X, Download } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 import { LanguageSelector } from "./components/LanguageSelector";
 import { useWikiArticles } from "./hooks/useWikiArticles";
@@ -9,7 +9,6 @@ function App() {
   const [showAbout, setShowAbout] = useState(false);
   const { articles, loading, fetchArticles } = useWikiArticles();
   const observerTarget = useRef(null);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const handleObserver = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -38,10 +37,8 @@ function App() {
 
   return (
     <div className="h-screen w-full bg-black text-white overflow-y-scroll snap-y snap-mandatory hide-scroll">
-      {/* Fixed Header */}
       <div className="fixed top-0 left-0 right-0 z-50 p-4">
         <div className="max-w-screen-xl mx-auto flex justify-between items-center">
-          {/* Left side - Logo and Controls */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => window.location.reload()}
@@ -72,7 +69,6 @@ function App() {
         </div>
       </div>
 
-      {/* About Modal with improved styling */}
       {showAbout && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
           <div className="bg-gray-900/95 backdrop-blur-sm border border-gray-700/50 p-8 rounded-xl max-w-md w-full relative shadow-2xl">
@@ -120,7 +116,6 @@ function App() {
             </div>
           </div>
           
-          {/* Click outside to close */}
           <div 
             className="absolute inset-0 -z-10" 
             onClick={() => setShowAbout(false)}
@@ -128,7 +123,6 @@ function App() {
         </div>
       )}
 
-      {/* Article Cards */}
       {articles.map((article) => (
         <WikiCard key={article.pageid} article={article} />
       ))}

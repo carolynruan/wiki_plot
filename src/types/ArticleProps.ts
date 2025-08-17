@@ -4,3 +4,8 @@ export interface ArticleProps {
     content: string;
     image?: string;
 }
+
+export interface ArticleListProps {
+  articles: ArticleProps[];
+  onArticleSelect: (article: ArticleProps) => void;
+}
