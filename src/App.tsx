@@ -33,7 +33,7 @@ function App() {
 
   useEffect(() => {
     fetchArticles();
-  }, []);
+  }, [fetchArticles]);
 
   return (
     <div className="h-screen w-full bg-black text-white overflow-y-scroll snap-y snap-mandatory hide-scroll">

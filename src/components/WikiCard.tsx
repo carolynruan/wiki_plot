@@ -24,7 +24,9 @@ export function WikiCard({ article }: WikiCardProps) {
           text: article.extract || "",
           url: article.url,
         });
-      } catch {}
+      } catch {
+        alert("Failed to share the article.");
+      }
     } else {
       await navigator.clipboard.writeText(article.url);
       alert("Link copied to clipboard!");

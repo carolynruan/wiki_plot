@@ -5,6 +5,47 @@ import {
 import { useLocalization } from "./useLocalization";
 import type { WikiArticle } from "../components/WikiCard";
 
+// Type definitions for Wikipedia API responses
+interface WikiCategoryMember {
+  pageid: number;
+  ns: number;
+  title: string;
+}
+
+interface WikiCategoryResponse {
+  query?: {
+    categorymembers?: WikiCategoryMember[];
+  };
+}
+
+interface WikiThumbnail {
+  source: string;
+  width: number;
+  height: number;
+}
+
+interface WikiCategory {
+  ns: number;
+  title: string;
+}
+
+interface WikiPage {
+  pageid: number;
+  ns: number;
+  title: string;
+  extract?: string;
+  thumbnail?: WikiThumbnail;
+  canonicalurl?: string;
+  varianttitles?: Record<string, string>;
+  categories?: WikiCategory[];
+}
+
+interface WikiPagesResponse {
+  query: {
+    pages: Record<string, WikiPage>;
+  };
+}
+
 const preloadImage = (
   src: string
 ): Promise<void> => {
@@ -54,7 +95,7 @@ export function useWikiArticles() {
             origin: "*",
           })
       );
-      const data = await response.json();
+      const data: WikiCategoryResponse = await response.json();
       return data.query?.categorymembers || [];
     } catch (error) {
       console.error(
@@ -91,7 +132,7 @@ export function useWikiArticles() {
       );
       const selectedTitles = shuffled
         .slice(0, 20)
-        .map((film: any) => film.title);
+        .map((film: WikiCategoryMember) => film.title);
 
       const detailsResponse = await fetch(
         currentLanguage.api +
@@ -112,32 +153,32 @@ export function useWikiArticles() {
           })
       );
 
-      const detailsData =
+      const detailsData: WikiPagesResponse =
         await detailsResponse.json();
 
       const newArticles = Object.values(
         detailsData.query.pages
       )
+        .filter(
+          (page: WikiPage) =>
+            page.thumbnail &&
+            page.thumbnail.source &&
+            page.canonicalurl &&
+            page.extract &&
+            page.extract.length > 100 // Ensure substantial content
+        )
         .map(
-          (page: any): WikiArticle => ({
+          (page: WikiPage): WikiArticle => ({
             title: page.title,
             displaytitle:
               page.varianttitles?.[
                 currentLanguage.id
               ] || page.title,
-            extract: page.extract,
-            pageid: page.pageid,
-            thumbnail: page.thumbnail,
-            url: page.canonicalurl,
+            extract: page.extract!,
+            pageid: page.pageid.toString(),
+            thumbnail: page.thumbnail!,
+            url: page.canonicalurl!,
           })
-        )
-        .filter(
-          (article) =>
-            article.thumbnail &&
-            article.thumbnail.source &&
-            article.url &&
-            article.extract &&
-            article.extract.length > 100 // Ensure substantial content
         );
 
       // Preload images
@@ -198,29 +239,15 @@ export function useWikiArticles() {
           })
       );
 
-      const data = await response.json();
+      const data: WikiPagesResponse = await response.json();
 
       const filmArticles = Object.values(
         data.query.pages
       )
-        .map(
-          (page: any): WikiArticle => ({
-            title: page.title,
-            displaytitle:
-              page.varianttitles?.[
-                currentLanguage.id
-              ] || page.title,
-            extract: page.extract,
-            pageid: page.pageid,
-            thumbnail: page.thumbnail,
-            url: page.canonicalurl,
-            categories: page.categories || [],
-          })
-        )
-        .filter((article) => {
+        .filter((page: WikiPage) => {
           const isFilm =
-            article.categories?.some(
-              (cat: any) =>
+            page.categories?.some(
+              (cat: WikiCategory) =>
                 cat.title
                   .toLowerCase()
                   .includes("film") ||
@@ -231,31 +258,45 @@ export function useWikiArticles() {
                   .toLowerCase()
                   .includes("cinema")
             ) ||
-            article.title
+            page.title
               .toLowerCase()
               .includes("film") ||
-            article.extract
+            page.extract
               ?.toLowerCase()
               .includes("film") ||
-            article.extract
+            page.extract
               ?.toLowerCase()
               .includes("movie") ||
-            article.extract
+            page.extract
               ?.toLowerCase()
               .includes("directed by") ||
-            article.extract
+            page.extract
               ?.toLowerCase()
               .includes("starring");
 
           return (
             isFilm &&
-            article.thumbnail &&
-            article.thumbnail.source &&
-            article.url &&
-            article.extract &&
-            article.extract.length > 100
+            page.thumbnail &&
+            page.thumbnail.source &&
+            page.canonicalurl &&
+            page.extract &&
+            page.extract.length > 100
           );
         })
+        .map(
+          (page: WikiPage): WikiArticle => ({
+            title: page.title,
+            displaytitle:
+              page.varianttitles?.[
+                currentLanguage.id
+              ] || page.title,
+            extract: page.extract!,
+            pageid: page.pageid.toString(),
+            thumbnail: page.thumbnail!,
+            url: page.canonicalurl!,
+            categories: page.categories?.map(cat => cat.title) || [],
+          })
+        )
         .slice(0, 20);
 
       await Promise.allSettled(
