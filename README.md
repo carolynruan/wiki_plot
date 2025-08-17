@@ -18,6 +18,6 @@ npm run dev
 
 ## Credits
 
-Original code and idea from [WikiTok](https://github.com/IsaacGemal/wikitok)
-Credits to Wikipedia for free access to knowledge
-Made by [Carolyn Ruan](https://carolynruan.github.io)
+Original code and idea from [WikiTok](https://github.com/IsaacGemal/wikitok)  
+Credits to Wikipedia for free access to knowledge  
+Made by [Carolyn Ruan](https://carolynruan.github.io)  
