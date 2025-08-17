@@ -131,7 +131,7 @@ export function useWikiArticles() {
     const startYear = 1929;
     const random = Math.random();
     return Math.floor(
-      currentYear - Math.pow(random, 0.5) * (currentYear - startYear)
+      currentYear - Math.pow(random, 3) * (currentYear - startYear)
     );
   };
 
@@ -148,7 +148,7 @@ export function useWikiArticles() {
         list: "categorymembers",
         cmtitle: `Category:${year} films`,
         cmnamespace: "0",
-        cmlimit: "500", // Increased limit to get more films per request
+        cmlimit: "500",
         origin: "*",
       });
 
@@ -166,10 +166,8 @@ export function useWikiArticles() {
     }
   };
 
-  // Optimized method: fetch fewer years but get more films from each
   const fetchFilmArticles = async (forBuffer = false) => {
     try {
-      // Reduce from 5 years to 2-3 years but get more films per year
       const numYears = 2;
       const yearPromises = [];
       
@@ -216,10 +214,10 @@ export function useWikiArticles() {
             inprop: "url|varianttitles",
             exintro: "1",
             exlimit: "max",
-            exsentences: "3", // Reduced from 5 to 3 for smaller payloads
+            exsentences: "3",
             explaintext: "1",
             piprop: "thumbnail",
-            pithumbsize: "600", // Reduced from 800 to 600
+            pithumbsize: "600",
             origin: "*",
             variant: currentLanguage.id,
           });
@@ -234,7 +232,7 @@ export function useWikiArticles() {
                 page.thumbnail.source &&
                 page.canonicalurl &&
                 page.extract &&
-                page.extract.length > 50 // Reduced threshold
+                page.extract.length > 50
             )
             .map(
               (page: WikiPage): WikiArticle => ({
@@ -288,7 +286,7 @@ export function useWikiArticles() {
         
         // Only fetch buffer if we got enough articles and enough time has passed
         if (uniqueNewArticles.length > 5) {
-          setTimeout(() => fetchArticlesRef.current?.(true), 5000); // Increased delay
+          setTimeout(() => fetchArticlesRef.current?.(true), 5000);
         }
       }
 
@@ -299,7 +297,6 @@ export function useWikiArticles() {
     }
   };
 
-  // Simplified fallback method
   const fetchRandomFilmsWithFilter = async (forBuffer = false) => {
     try {
       const url = currentLanguage.api + new URLSearchParams({
@@ -309,14 +306,14 @@ export function useWikiArticles() {
         grnnamespace: "0",
         prop: "extracts|info|pageimages|categories",
         inprop: "url|varianttitles",
-        grnlimit: "30", // Reduced from 50
+        grnlimit: "30",
         exintro: "1",
         exlimit: "max",
-        exsentences: "3", // Reduced from 5
+        exsentences: "3",
         explaintext: "1",
         piprop: "thumbnail",
-        pithumbsize: "600", // Reduced from 800
-        cllimit: "20", // Reduced from 50
+        pithumbsize: "600",
+        cllimit: "20",
         origin: "*",
         variant: currentLanguage.id,
       });
@@ -345,7 +342,7 @@ export function useWikiArticles() {
             page.thumbnail.source &&
             page.canonicalurl &&
             page.extract &&
-            page.extract.length > 50 // Reduced threshold
+            page.extract.length > 50
           );
         })
         .map(
@@ -360,7 +357,7 @@ export function useWikiArticles() {
             categories: page.categories?.map(cat => cat.title) || [],
           })
         )
-        .slice(0, 15); // Reduced from 20
+        .slice(0, 15);
 
       const uniqueFilmArticles = deduplicateArticles(filmArticles);
 
@@ -435,7 +432,7 @@ export function useWikiArticles() {
       });
       setBuffer([]);
       // Fetch new buffer after using current buffer
-      setTimeout(() => fetchArticlesRef.current?.(true), 3000); // Increased delay
+      setTimeout(() => fetchArticlesRef.current?.(true), 3000);
     } else {
       fetchArticlesRef.current?.(false);
     }
