@@ -1,6 +1,7 @@
 import {
   useState,
   useCallback,
+  useRef,
 } from "react";
 import { useLocalization } from "./useLocalization";
 import type { WikiArticle } from "../components/WikiCard";
@@ -66,6 +67,9 @@ export function useWikiArticles() {
     WikiArticle[]
   >([]);
   const { currentLanguage } = useLocalization();
+  
+  // Use ref to store the latest fetchArticles function
+  const fetchArticlesRef = useRef<(forBuffer?: boolean) => Promise<void>>(() => Promise.resolve());
 
   const getWeightedFilmYear = () => {
     const currentYear = new Date().getFullYear();
@@ -103,6 +107,120 @@ export function useWikiArticles() {
         error
       );
       return [];
+    }
+  };
+
+  // Fallback method using random generator with film-related filtering
+  const fetchRandomFilmsWithFilter = async (
+    forBuffer = false
+  ) => {
+    try {
+      const response = await fetch(
+        currentLanguage.api +
+          new URLSearchParams({
+            action: "query",
+            format: "json",
+            generator: "random",
+            grnnamespace: "0",
+            prop: "extracts|info|pageimages|categories",
+            inprop: "url|varianttitles",
+            grnlimit: "50",
+            exintro: "1",
+            exlimit: "max",
+            exsentences: "5",
+            explaintext: "1",
+            piprop: "thumbnail",
+            pithumbsize: "800",
+            cllimit: "50",
+            origin: "*",
+            variant: currentLanguage.id,
+          })
+      );
+
+      const data: WikiPagesResponse = await response.json();
+
+      const filmArticles = Object.values(
+        data.query.pages
+      )
+        .filter((page: WikiPage) => {
+          const isFilm =
+            page.categories?.some(
+              (cat: WikiCategory) =>
+                cat.title
+                  .toLowerCase()
+                  .includes("film") ||
+                cat.title
+                  .toLowerCase()
+                  .includes("movie") ||
+                cat.title
+                  .toLowerCase()
+                  .includes("cinema")
+            ) ||
+            page.title
+              .toLowerCase()
+              .includes("film") ||
+            page.extract
+              ?.toLowerCase()
+              .includes("film") ||
+            page.extract
+              ?.toLowerCase()
+              .includes("movie") ||
+            page.extract
+              ?.toLowerCase()
+              .includes("directed by") ||
+            page.extract
+              ?.toLowerCase()
+              .includes("starring");
+
+          return (
+            isFilm &&
+            page.thumbnail &&
+            page.thumbnail.source &&
+            page.canonicalurl &&
+            page.extract &&
+            page.extract.length > 100
+          );
+        })
+        .map(
+          (page: WikiPage): WikiArticle => ({
+            title: page.title,
+            displaytitle:
+              page.varianttitles?.[
+                currentLanguage.id
+              ] || page.title,
+            extract: page.extract!,
+            pageid: page.pageid.toString(),
+            thumbnail: page.thumbnail!,
+            url: page.canonicalurl!,
+            categories: page.categories?.map(cat => cat.title) || [],
+          })
+        )
+        .slice(0, 20);
+
+      await Promise.allSettled(
+        filmArticles
+          .filter((article) => article.thumbnail)
+          .map((article) =>
+            preloadImage(
+              article.thumbnail!.source
+            )
+          )
+      );
+
+      if (forBuffer) {
+        setBuffer(filmArticles);
+      } else {
+        setArticles((prev) => [
+          ...prev,
+          ...filmArticles,
+        ]);
+        fetchArticlesRef.current?.(true);
+      }
+    } catch (error) {
+      console.error(
+        "Error in fallback film fetch:",
+        error
+      );
     }
   };
 
@@ -212,127 +330,16 @@ export function useWikiArticles() {
     setLoading(false);
   };
 
-  // Fallback method using random generator with film-related filtering
-  const fetchRandomFilmsWithFilter = async (
-    forBuffer = false
-  ) => {
-    try {
-      const response = await fetch(
-        currentLanguage.api +
-          new URLSearchParams({
-            action: "query",
-            format: "json",
-            generator: "random",
-            grnnamespace: "0",
-            prop: "extracts|info|pageimages|categories",
-            inprop: "url|varianttitles",
-            grnlimit: "50",
-            exintro: "1",
-            exlimit: "max",
-            exsentences: "5",
-            explaintext: "1",
-            piprop: "thumbnail",
-            pithumbsize: "800",
-            cllimit: "50",
-            origin: "*",
-            variant: currentLanguage.id,
-          })
-      );
-
-      const data: WikiPagesResponse = await response.json();
-
-      const filmArticles = Object.values(
-        data.query.pages
-      )
-        .filter((page: WikiPage) => {
-          const isFilm =
-            page.categories?.some(
-              (cat: WikiCategory) =>
-                cat.title
-                  .toLowerCase()
-                  .includes("film") ||
-                cat.title
-                  .toLowerCase()
-                  .includes("movie") ||
-                cat.title
-                  .toLowerCase()
-                  .includes("cinema")
-            ) ||
-            page.title
-              .toLowerCase()
-              .includes("film") ||
-            page.extract
-              ?.toLowerCase()
-              .includes("film") ||
-            page.extract
-              ?.toLowerCase()
-              .includes("movie") ||
-            page.extract
-              ?.toLowerCase()
-              .includes("directed by") ||
-            page.extract
-              ?.toLowerCase()
-              .includes("starring");
-
-          return (
-            isFilm &&
-            page.thumbnail &&
-            page.thumbnail.source &&
-            page.canonicalurl &&
-            page.extract &&
-            page.extract.length > 100
-          );
-        })
-        .map(
-          (page: WikiPage): WikiArticle => ({
-            title: page.title,
-            displaytitle:
-              page.varianttitles?.[
-                currentLanguage.id
-              ] || page.title,
-            extract: page.extract!,
-            pageid: page.pageid.toString(),
-            thumbnail: page.thumbnail!,
-            url: page.canonicalurl!,
-            categories: page.categories?.map(cat => cat.title) || [],
-          })
-        )
-        .slice(0, 20);
-
-      await Promise.allSettled(
-        filmArticles
-          .filter((article) => article.thumbnail)
-          .map((article) =>
-            preloadImage(
-              article.thumbnail!.source
-            )
-          )
-      );
-
-      if (forBuffer) {
-        setBuffer(filmArticles);
-      } else {
-        setArticles((prev) => [
-          ...prev,
-          ...filmArticles,
-        ]);
-        fetchArticles(true);
-      }
-    } catch (error) {
-      console.error(
-        "Error in fallback film fetch:",
-        error
-      );
-    }
-  };
+  // Update the ref whenever fetchArticles changes
+  fetchArticlesRef.current = fetchArticles;
 
   const getMoreArticles = useCallback(() => {
     if (buffer.length > 0) {
       setArticles((prev) => [...prev, ...buffer]);
       setBuffer([]);
-      fetchArticles(true);
+      fetchArticlesRef.current?.(true);
     } else {
-      fetchArticles(false);
+      fetchArticlesRef.current?.(false);
     }
   }, [buffer]);
 
