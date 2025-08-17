@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArticleProps, ArticleListProps } from '../types/ArticleProps';
+import { type ArticleProps, type ArticleListProps } from '../types/ArticleProps';
 
 const ArticleList: React.FC<ArticleListProps> = ({ articles, onArticleSelect }) => {
   return (

@@ -1,7 +1,6 @@
 import {
   useState,
   useCallback,
-  useRef,
 } from "react";
 import { useLocalization } from "./useLocalization";
 import type { WikiArticle } from "../components/WikiCard";

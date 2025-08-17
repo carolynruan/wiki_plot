@@ -8,6 +8,7 @@ export interface WikiArticle {
   pageid: string;
   url: string;
   thumbnail: { source: string; width: number; height: number };
+  categories?: string[];
 }
 
 interface WikiCardProps { article: WikiArticle }
