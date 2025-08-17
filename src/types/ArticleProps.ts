@@ -3,6 +3,7 @@ export interface ArticleProps {
     title: string;
     content: string;
     image?: string;
+    date?: string;
 }
 
 export interface ArticleListProps {
