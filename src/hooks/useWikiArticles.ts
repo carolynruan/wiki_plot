@@ -58,14 +58,29 @@ const preloadImage = (
   });
 };
 
+// Helper function to deduplicate articles by pageid
+const deduplicateArticles = (articles: WikiArticle[]): WikiArticle[] => {
+  const seen = new Set<string>();
+  return articles.filter(article => {
+    if (seen.has(article.pageid)) {
+      return false;
+    }
+    seen.add(article.pageid);
+    return true;
+  });
+};
+
+// Helper function to merge new articles with existing ones, avoiding duplicates
+const mergeUniqueArticles = (existing: WikiArticle[], newArticles: WikiArticle[]): WikiArticle[] => {
+  const existingIds = new Set(existing.map(article => article.pageid));
+  const uniqueNewArticles = newArticles.filter(article => !existingIds.has(article.pageid));
+  return [...existing, ...uniqueNewArticles];
+};
+
 export function useWikiArticles() {
-  const [articles, setArticles] = useState<
-    WikiArticle[]
-  >([]);
+  const [articles, setArticles] = useState<WikiArticle[]>([]);
   const [loading, setLoading] = useState(false);
-  const [buffer, setBuffer] = useState<
-    WikiArticle[]
-  >([]);
+  const [buffer, setBuffer] = useState<WikiArticle[]>([]);
   const { currentLanguage } = useLocalization();
   
   // Use ref to store the latest fetchArticles function
@@ -197,8 +212,11 @@ export function useWikiArticles() {
         )
         .slice(0, 20);
 
+      // Deduplicate the articles
+      const uniqueFilmArticles = deduplicateArticles(filmArticles);
+
       await Promise.allSettled(
-        filmArticles
+        uniqueFilmArticles
           .filter((article) => article.thumbnail)
           .map((article) =>
             preloadImage(
@@ -208,12 +226,15 @@ export function useWikiArticles() {
       );
 
       if (forBuffer) {
-        setBuffer(filmArticles);
+        setBuffer(prevBuffer => {
+          const mergedBuffer = mergeUniqueArticles(prevBuffer, uniqueFilmArticles);
+          return deduplicateArticles(mergedBuffer);
+        });
       } else {
-        setArticles((prev) => [
-          ...prev,
-          ...filmArticles,
-        ]);
+        setArticles(prev => {
+          const mergedArticles = mergeUniqueArticles(prev, uniqueFilmArticles);
+          return deduplicateArticles(mergedArticles);
+        });
         fetchArticlesRef.current?.(true);
       }
     } catch (error) {
@@ -244,8 +265,13 @@ export function useWikiArticles() {
       );
       const allFilms = yearResults.flat();
 
-      // Randomly select 20 films from all collected films
-      const shuffled = [...allFilms].sort(
+      // Remove duplicates from the films list before proceeding
+      const uniqueFilms = Array.from(
+        new Map(allFilms.map(film => [film.pageid, film])).values()
+      );
+
+      // Randomly select 20 films from all collected unique films
+      const shuffled = [...uniqueFilms].sort(
         () => Math.random() - 0.5
       );
       const selectedTitles = shuffled
@@ -299,9 +325,12 @@ export function useWikiArticles() {
           })
         );
 
+      // Deduplicate the new articles
+      const uniqueNewArticles = deduplicateArticles(newArticles);
+
       // Preload images
       await Promise.allSettled(
-        newArticles
+        uniqueNewArticles
           .filter((article) => article.thumbnail)
           .map((article) =>
             preloadImage(
@@ -311,12 +340,15 @@ export function useWikiArticles() {
       );
 
       if (forBuffer) {
-        setBuffer(newArticles);
+        setBuffer(prevBuffer => {
+          const mergedBuffer = mergeUniqueArticles(prevBuffer, uniqueNewArticles);
+          return deduplicateArticles(mergedBuffer);
+        });
       } else {
-        setArticles((prev) => [
-          ...prev,
-          ...newArticles,
-        ]);
+        setArticles(prev => {
+          const mergedArticles = mergeUniqueArticles(prev, uniqueNewArticles);
+          return deduplicateArticles(mergedArticles);
+        });
         fetchArticles(true);
       }
     } catch (error) {
@@ -335,7 +367,10 @@ export function useWikiArticles() {
 
   const getMoreArticles = useCallback(() => {
     if (buffer.length > 0) {
-      setArticles((prev) => [...prev, ...buffer]);
+      setArticles(prev => {
+        const mergedArticles = mergeUniqueArticles(prev, buffer);
+        return deduplicateArticles(mergedArticles);
+      });
       setBuffer([]);
       fetchArticlesRef.current?.(true);
     } else {
