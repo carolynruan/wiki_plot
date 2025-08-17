@@ -1,0 +1,99 @@
+/* ---- App container scroll setup ---- */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden; /* prevent body scroll */
+}
+.hide-scroll.snap-y {
+  height: 100dvh;
+  overflow-y: auto !important;
+  scroll-snap-type: y mandatory !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  touch-action: pan-y;
+}
+@supports (height: 100svh) {
+  .hide-scroll.snap-y { height: 100svh; }
+}
+/* ---- Each article section ---- */
+.h-screen.snap-start {
+  position: relative;
+  min-height: 100dvh;
+  height: 100svh;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  align-items: center;   /* center the square vertically */
+  justify-content: center; /* center horizontally */
+  box-sizing: border-box;
+  overflow: hidden;
+}
+@supports (height: 100svh) {
+  .h-screen.snap-start { height: 100svh; min-height: 100svh; }
+}
+/* ---- Full-bleed background image ---- */
+.article-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+/* ---- Card container (square on desktop, full on mobile) ---- */
+.article-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 2rem 1rem;
+  z-index: 1; /* sits above background */
+}
+@media (min-width: 768px) {
+  .article-container {
+    max-width: 650px;
+    max-height: 650px;
+    margin: auto;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 4px 25px rgba(0,0,0,0.35);
+  }
+}
+/* ---- Title & content on top of image ---- */
+.article-title,
+.article-content {
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0,0,0,.4);
+  position: relative;
+  z-index: 2;
+}
+/* Title */
+.article-title {
+  margin: 0 0 .5rem 0;
+  font-weight: 800;
+  font-size: clamp(1.25rem, 3.5vw, 2.25rem);
+  line-height: 1.2;
+}
+/* Glassy text box */
+.article-content {
+  max-width: 85%;
+  margin-inline: auto;
+  line-height: 1.6;
+  padding: 1rem 1.25rem;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 1rem;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  margin-bottom: 1.5rem;
+}
